@@ -5,6 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 // Database paths
 const DB_DIR = path.join(__dirname, 'database');
@@ -65,19 +66,49 @@ function initializeDatabase() {
 // DUPLICATE CHECKING
 // ==========================================
 
+/**
+ * Gera um hash SHA-256 para identificar consultas de forma única
+ * Isso evita duplicatas por diferentes formatações (ex: CPF com e sem máscara)
+ */
+function generateHash(type, parameter) {
+  const normalized = normalizeParameter(type, parameter);
+  return crypto
+    .createHash('sha256')
+    .update(`${type}:${normalized}`)
+    .digest('hex');
+}
+
+/**
+ * Normaliza o parâmetro para comparação
+ */
+function normalizeParameter(type, parameter) {
+  let normalized = parameter.toString().trim();
+
+  if (type === 'cpf' || type === 'numero') {
+    // Remove todos os caracteres não numéricos
+    normalized = normalized.replace(/\D/g, '');
+  } else if (type === 'nome') {
+    // Remove acentos, converte para minúsculas
+    normalized = normalized
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ') // Remove espaços múltiplos
+      .trim();
+  }
+
+  return normalized;
+}
+
+/**
+ * Verifica se já existe uma consulta idêntica no banco de dados
+ */
 function isDuplicate(type, parameter) {
   try {
     const indexData = JSON.parse(fs.readFileSync(INDEX_DB, 'utf-8'));
 
-    // Normalize parameter for comparison
-    let normalizedParam;
-    if (type === 'cpf' || type === 'numero') {
-      // For CPF and numbers, keep only digits
-      normalizedParam = parameter.toString().trim().toLowerCase().replace(/\D/g, '');
-    } else {
-      // For names, keep letters and spaces
-      normalizedParam = parameter.toString().trim().toLowerCase();
-    }
+    // Gera hash da consulta atual
+    const currentHash = generateHash(type, parameter);
 
     let indexArray;
     switch (type) {
@@ -94,28 +125,39 @@ function isDuplicate(type, parameter) {
         return false;
     }
 
-    // Check if parameter exists in index
-    return indexArray.some(entry => {
-      let existingParam;
-      if (type === 'cpf' || type === 'numero') {
-        existingParam = entry.parameter.toString().trim().toLowerCase().replace(/\D/g, '');
-      } else {
-        existingParam = entry.parameter.toString().trim().toLowerCase();
-      }
-      return existingParam === normalizedParam;
-    });
+    // Verifica se já existe o hash no índice
+    const duplicate = indexArray.find(entry => entry.hash === currentHash);
+
+    if (duplicate) {
+      console.log(`[Database] Duplicate detected for ${type}:`, {
+        parameter: maskParameter(type, parameter),
+        hash: currentHash.substring(0, 8) + '...',
+        existingQueryId: duplicate.queryId,
+        timestamp: duplicate.timestamp
+      });
+      return true;
+    }
+
+    return false;
   } catch (error) {
     console.error('[Database] Duplicate check error:', error);
     return false;
   }
 }
 
+/**
+ * Adiciona a consulta ao índice
+ */
 function addToIndex(type, parameter, queryId) {
   try {
     const indexData = JSON.parse(fs.readFileSync(INDEX_DB, 'utf-8'));
-    
+
+    // Gera hash único
+    const hash = generateHash(type, parameter);
+
     const indexEntry = {
-      parameter,
+      parameter: maskParameter(type, parameter), // Armazena versão mascarada por segurança
+      hash: hash, // Hash para verificação de duplicatas
       queryId,
       timestamp: new Date().toISOString()
     };
@@ -137,13 +179,75 @@ function addToIndex(type, parameter, queryId) {
 
     indexData.lastUpdated = new Date().toISOString();
     fs.writeFileSync(INDEX_DB, JSON.stringify(indexData, null, 2), 'utf-8');
-    
-    console.log(`[Database] Added to ${type} index:`, parameter);
+
+    console.log(`[Database] Added to ${type} index:`, {
+      parameter: maskParameter(type, parameter),
+      hash: hash.substring(0, 8) + '...',
+      queryId
+    });
     return true;
   } catch (error) {
     console.error('[Database] Index update error:', error);
     return false;
   }
+}
+
+/**
+ * Remove uma consulta do índice (quando é deletada)
+ */
+function removeFromIndex(type, queryId) {
+  try {
+    const indexData = JSON.parse(fs.readFileSync(INDEX_DB, 'utf-8'));
+
+    let indexArray;
+    let indexField;
+
+    switch (type) {
+      case 'cpf':
+        indexArray = indexData.cpfIndex || [];
+        indexField = 'cpfIndex';
+        break;
+      case 'nome':
+        indexArray = indexData.nomeIndex || [];
+        indexField = 'nomeIndex';
+        break;
+      case 'numero':
+        indexArray = indexData.numeroIndex || [];
+        indexField = 'numeroIndex';
+        break;
+      default:
+        return false;
+    }
+
+    const initialLength = indexArray.length;
+    indexData[indexField] = indexArray.filter(entry => entry.queryId !== queryId);
+
+    if (indexData[indexField].length < initialLength) {
+      indexData.lastUpdated = new Date().toISOString();
+      fs.writeFileSync(INDEX_DB, JSON.stringify(indexData, null, 2), 'utf-8');
+      console.log(`[Database] Removed from ${type} index:`, queryId);
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error('[Database] Index removal error:', error);
+    return false;
+  }
+}
+
+/**
+ * Mascarar parâmetro sensível para logs e armazenamento
+ */
+function maskParameter(type, parameter) {
+  if (type === 'cpf') {
+    const cpf = parameter.toString().replace(/\D/g, '');
+    if (cpf.length >= 11) {
+      return cpf.substring(0, 3) + '***' + cpf.substring(cpf.length - 2);
+    }
+    return cpf;
+  }
+  return parameter.toString();
 }
 
 // ==========================================
@@ -352,7 +456,7 @@ function searchQueries(type, searchTerm) {
 function deleteQuery(queryId) {
   try {
     const type = queryId.split('-')[0];
-    
+
     let dbFile;
     switch (type) {
       case 'cpf':
@@ -373,7 +477,7 @@ function deleteQuery(queryId) {
 
     const data = JSON.parse(fs.readFileSync(dbFile, 'utf-8'));
     const filtered = data.filter(q => q.queryId !== queryId);
-    
+
     if (data.length === filtered.length) {
       return {
         success: false,
@@ -382,7 +486,10 @@ function deleteQuery(queryId) {
     }
 
     fs.writeFileSync(dbFile, JSON.stringify(filtered, null, 2), 'utf-8');
-    
+
+    // Remove do índice para manter consistência
+    removeFromIndex(type, queryId);
+
     console.log(`[Database] Deleted query:`, queryId);
 
     return {
@@ -559,5 +666,9 @@ module.exports = {
   clearDatabase,
   getDatabaseStats,
   isDuplicate,
+  generateHash,
+  normalizeParameter,
+  removeFromIndex,
+  maskParameter,
   SERVER_SIGNATURE
 };
