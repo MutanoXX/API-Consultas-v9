@@ -383,6 +383,18 @@ function displayResult(type, param, result) {
                 </div>
             </div>
         `;
+    } else if (result.notFound) {
+        content = `
+            <div style="background: rgba(245, 158, 11, 0.2); padding: 16px; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.3);">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <span style="font-size: 32px;">⚠️</span>
+                    <div>
+                        <strong style="color: #f59e0b; font-size: 16px;">Não Encontrado</strong>
+                        <p style="margin: 4px 0 0 0; color: #94a3b8;">${result.error || 'CPF não encontrado na base de dados'}</p>
+                    </div>
+                </div>
+            </div>
+        `;
     } else {
         content = `<div style="color: #ef4444; padding: 20px;">
             <strong>Erro:</strong> ${result.error || 'Consulta sem sucesso'}
@@ -393,8 +405,8 @@ function displayResult(type, param, result) {
         <div class="result-item">
             <div class="result-header">
                 <span class="result-type ${type}">${type}</span>
-                <span class="result-status ${isSuccess ? 'success' : result.protected ? 'blocked' : 'error'}">
-                    ${isSuccess ? 'Sucesso' : result.protected ? 'Bloqueado' : 'Erro'}
+                <span class="result-status ${isSuccess ? 'success' : result.protected ? 'blocked' : result.notFound ? 'warning' : 'error'}">
+                    ${isSuccess ? 'Sucesso' : result.protected ? 'Bloqueado' : result.notFound ? 'Não Encontrado' : 'Erro'}
                 </span>
             </div>
             <div class="result-param">${type === 'cpf' ? maskCPF(param) : param}</div>

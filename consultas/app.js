@@ -143,6 +143,8 @@ async function performSearch() {
             displayResults(data);
         } else if (data.protected) {
             showError('⛔ Consulta bloqueada - Este usuário está protegido.');
+        } else if (data.notFound) {
+            showError('⚠️ ' + (data.error || 'CPF não encontrado na base de dados.'));
         } else {
             showError(data.error || 'Erro ao realizar consulta.');
         }

@@ -29,6 +29,16 @@ function parseCPFData(text) {
     return { error: 'Invalid response from API', receivedText: text };
   }
 
+  // Check for error messages from the API
+  const lowerText = text.toLowerCase();
+  if (lowerText.includes('cpf não encontrado') ||
+      lowerText.includes('cpf nao encontrado') ||
+      lowerText.includes('não encontrado') ||
+      lowerText.includes('nao encontrado') ||
+      lowerText.includes('⚠️') && !text.includes('• Nome:')) {
+    return { error: 'CPF não encontrado na base de dados', notFound: true };
+  }
+
   const data = {
     basicData: {},
     economicData: {},
@@ -111,6 +121,16 @@ function parseCPFData(text) {
   const pepInfoMatch = text.match(/• PEP: (.+)/);
   if (pepInfoMatch) data.importantInfo.pep = pepInfoMatch[1].trim();
 
+  // Check if any data was actually parsed
+  const hasBasicData = Object.keys(data.basicData).length > 0;
+  const hasEconomicData = Object.keys(data.economicData).length > 0;
+  const hasAddresses = data.addresses.length > 0;
+  const hasImportantInfo = Object.keys(data.importantInfo).length > 0;
+
+  if (!hasBasicData && !hasEconomicData && !hasAddresses && !hasImportantInfo) {
+    return { error: 'Nenhum dado válido encontrado na resposta', notFound: true };
+  }
+
   return data;
 }
 
@@ -143,6 +163,26 @@ async function consultarCPF(cpf) {
     }
 
     const parsedData = parseCPFData(data.resultado);
+
+    // Check if the CPF was not found
+    if (parsedData.error && parsedData.notFound) {
+      return {
+        success: false,
+        error: parsedData.error,
+        notFound: true,
+        creator: '@MutanoX'
+      };
+    }
+
+    // Check for parsing errors
+    if (parsedData.error) {
+      return {
+        success: false,
+        error: parsedData.error,
+        creator: '@MutanoX'
+      };
+    }
+
     return {
       success: true,
       data: parsedData,
