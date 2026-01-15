@@ -10,7 +10,6 @@ const http = require('http');
 const { URL } = require('url');
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
 
 // Import endpoints
 const { consultarCPF } = require('./endpoints/cpf');
