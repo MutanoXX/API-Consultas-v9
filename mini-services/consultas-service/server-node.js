@@ -7,7 +7,6 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const url = require('url');
 const userManager = require('./user-manager');
 
 const PORT = 3001;
@@ -42,8 +41,8 @@ function parseBody(req) {
 }
 
 function getQueryParam(req, param) {
-  const parsedUrl = url.parse(req.url, true);
-  return parsedUrl.query[param];
+  const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+  return parsedUrl.searchParams.get(param);
 }
 
 function getAuthToken(req) {
@@ -180,20 +179,19 @@ async function handleLogin(req, res) {
 
 // API proxy para o servidor principal
 async function handleProxy(req, res) {
-  const parsedUrl = url.parse(req.url, true);
+  const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
   const pathname = parsedUrl.pathname;
   const proxyPath = pathname.replace('/api/proxy', '');
 
   // Construir URL do servidor principal
   const mainServerUrl = `http://localhost:8080${proxyPath}`;
-  const queryParams = parsedUrl.query;
 
   // Obter usuário autenticado (se existir)
   const token = getAuthToken(req);
   const user = token ? userManager.getUserByToken(token) : null;
 
   // Adicionar query parameters
-  const queryString = new URLSearchParams(queryParams).toString();
+  const queryString = parsedUrl.searchParams.toString();
   const fullUrl = `${mainServerUrl}${queryString ? '?' + queryString : ''}`;
 
   console.log('[Proxy] Requesting:', fullUrl);
@@ -210,8 +208,8 @@ async function handleProxy(req, res) {
 
     // Salvar a consulta se usuário estiver autenticado
     if (user && data) {
-      const queryType = queryParams.tipo || 'unknown';
-      const queryParam = queryParams.cpf || queryParams.q || 'unknown';
+      const queryType = parsedUrl.searchParams.get('tipo') || 'unknown';
+      const queryParam = parsedUrl.searchParams.get('cpf') || parsedUrl.searchParams.get('q') || 'unknown';
 
       userManager.saveQuery(user.id, {
         type: queryType,
@@ -252,7 +250,7 @@ async function handleUserQueries(req, res) {
 // ==========================================
 
 function router(req, res) {
-  const parsedUrl = url.parse(req.url, true);
+  const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
   const pathname = parsedUrl.pathname;
 
   console.log(`[${new Date().toISOString()}] ${req.method} ${pathname}`);
