@@ -763,11 +763,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // Consultas page - serve HTML
+    // Consultas page - serve HTML (novo v3.0)
     if (pathname === '/consultas') {
-      console.log('[Server] Request for consultas page');
+      console.log('[Server] Request for consultas page v3.0');
       try {
-        const consultasHtml = fs.readFileSync(path.join(__dirname, 'consultas', 'index.html'), 'utf-8');
+        const consultasHtml = fs.readFileSync(path.join(__dirname, 'mini-services', 'consultas-service', 'index.html'), 'utf-8');
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
@@ -775,18 +775,18 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200);
         res.end(consultasHtml);
       } catch (error) {
-        console.error('[Server] Error loading consultas page:', error.message);
+        console.error('[Server] Error loading consultas page v3.0:', error.message);
         res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Consultas page not available' }));
+        res.end(JSON.stringify({ error: 'Consultas page v3.0 not available' }));
       }
       return;
     }
 
-    // Consultas JS
+    // Consultas JS (novo v3.0)
     if (pathname === '/app.js') {
-      console.log('[Server] Request for app.js');
+      console.log('[Server] Request for app.js v3.0');
       try {
-        const consultasJs = fs.readFileSync(path.join(__dirname, 'consultas', 'app.js'), 'utf-8');
+        const consultasJs = fs.readFileSync(path.join(__dirname, 'mini-services', 'consultas-service', 'app.js'), 'utf-8');
         res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
@@ -794,9 +794,9 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200);
         res.end(consultasJs);
       } catch (error) {
-        console.error('[Server] Error loading app.js:', error.message);
+        console.error('[Server] Error loading app.js v3.0:', error.message);
         res.writeHead(500);
-        res.end(JSON.stringify({ error: 'app.js not available' }));
+        res.end(JSON.stringify({ error: 'app.js v3.0 not available' }));
       }
       return;
     }
@@ -1085,7 +1085,7 @@ const loginHtml = `<!DOCTYPE html>
 
         <div class="footer">
             <p>MutanoX Premium API v2.0.0</p>
-            <p>© 2024 @MutanoX</p>
+            <p>© 2026 @MutanoX</p>
         </div>
     </div>
 
