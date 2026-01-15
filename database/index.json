@@ -1,0 +1,29 @@
+{
+  "cpfIndex": [
+    {
+      "parameter": "12345678901",
+      "queryId": "cpf-1768430690015-5wvqg3r1x",
+      "timestamp": "2026-01-14T22:44:50.015Z"
+    }
+  ],
+  "nomeIndex": [
+    {
+      "parameter": "Joao Silva",
+      "queryId": "nome-1768430708860-54c9wnaif",
+      "timestamp": "2026-01-14T22:45:08.860Z"
+    },
+    {
+      "parameter": "Maria Silva",
+      "queryId": "nome-1768431052476-lfuea8ag4",
+      "timestamp": "2026-01-14T22:50:52.477Z"
+    }
+  ],
+  "numeroIndex": [
+    {
+      "parameter": "11999999999",
+      "queryId": "numero-1768430734067-k6ro3roz7",
+      "timestamp": "2026-01-14T22:45:34.067Z"
+    }
+  ],
+  "lastUpdated": "2026-01-14T22:50:52.477Z"
+}

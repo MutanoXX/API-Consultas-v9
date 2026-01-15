@@ -1,0 +1,34 @@
+[
+  {
+    "queryId": "nome-1768431052476-lfuea8ag4",
+    "type": "nome",
+    "parameter": "Maria Silva",
+    "originalParameter": "Maria Silva",
+    "error": null,
+    "success": true,
+    "timestamp": "2026-01-14T22:50:52.476Z",
+    "requestInfo": {
+      "ip": "::1",
+      "userAgent": "curl/8.14.1",
+      "origin": "Unknown",
+      "method": "GET",
+      "path": "/api/consultas?tipo=nome&q=Maria+Silva"
+    }
+  },
+  {
+    "queryId": "nome-1768430708860-54c9wnaif",
+    "type": "nome",
+    "parameter": "Joao Silva",
+    "originalParameter": "Joao Silva",
+    "error": null,
+    "success": true,
+    "timestamp": "2026-01-14T22:45:08.860Z",
+    "requestInfo": {
+      "ip": "::1",
+      "userAgent": "curl/8.14.1",
+      "origin": "Unknown",
+      "method": "GET",
+      "path": "/api/consultas?tipo=nome&q=Joao+Silva"
+    }
+  }
+]

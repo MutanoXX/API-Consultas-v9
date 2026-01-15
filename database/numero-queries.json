@@ -1,0 +1,18 @@
+[
+  {
+    "queryId": "numero-1768430734067-k6ro3roz7",
+    "type": "numero",
+    "parameter": "11999999999",
+    "originalParameter": "11999999999",
+    "error": null,
+    "success": true,
+    "timestamp": "2026-01-14T22:45:34.067Z",
+    "requestInfo": {
+      "ip": "::1",
+      "userAgent": "curl/8.14.1",
+      "origin": "Unknown",
+      "method": "GET",
+      "path": "/api/consultas?tipo=numero&q=11999999999"
+    }
+  }
+]

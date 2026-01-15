@@ -1,0 +1,31 @@
+[
+  {
+    "queryId": "cpf-1768430690015-5wvqg3r1x",
+    "type": "cpf",
+    "parameter": "123***01",
+    "originalParameter": "12345678901",
+    "result": {
+      "basicData": {},
+      "economicData": {},
+      "addresses": [],
+      "voterCard": {},
+      "fiscalData": {},
+      "socialBenefits": [],
+      "politicallyExposedPerson": {},
+      "publicServant": {},
+      "consumptionProfile": {},
+      "vaccines": [],
+      "importantInfo": {}
+    },
+    "error": null,
+    "success": true,
+    "timestamp": "2026-01-14T22:44:50.015Z",
+    "requestInfo": {
+      "ip": "::1",
+      "userAgent": "curl/8.14.1",
+      "origin": "Unknown",
+      "method": "GET",
+      "path": "/api/consultas?tipo=cpf&cpf=12345678901"
+    }
+  }
+]
