@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MutanoX - Sistema de Consultas</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/output.css">
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+            color: #f1f5f9;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            font-size: 48px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: #9ca3af;
+            margin-top: 10px;
+        }
+
+        .card {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+        }
+
+        .info-text {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+        }
+
+        .links {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 2px solid rgba(239, 68, 68, 0.3);
+            padding: 16px;
+            border-radius: 12px;
+            color: #fca5a5;
+            margin-bottom: 20px;
+        }
+
+        .success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 2px solid rgba(34, 197, 94, 0.3);
+            padding: 16px;
+            border-radius: 12px;
+            color: #4ade80;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">M</div>
+            <div class="subtitle">Sistema de Consultas MutanoX</div>
+        </div>
+
+        <div class="card">
+            <h2 style="margin-top: 0;">🔍 Sistema de Consultas</h2>
+            <p class="info-text">
+                Este é o sistema de consultas da MutanoX. Para acessar o sistema completo,
+                você precisa estar autenticado.
+            </p>
+        </div>
+
+        <div class="card">
+            <h2>📊 Status da API</h2>
+            <p class="info-text">
+                <strong>API Principal:</strong> <a href="http://localhost:8080/api/consultas" target="_blank" style="color: #6366f1;">/api/consultas</a>
+            </p>
+            <p class="info-text">
+                <strong>Health Check:</strong> <a href="http://localhost:3001/health" target="_blank" style="color: #6366f1;">/health</a>
+            </p>
+        </div>
+
+        <div class="card">
+            <h2>🔐 Acesso ao Sistema</h2>
+            <p class="info-text">
+                O sistema utiliza autenticação via token. Se você já possui uma conta,
+                faça login para acessar as consultas.
+            </p>
+            <div class="links">
+                <a href="/login.html" class="btn">📝 Fazer Login</a>
+                <a href="/login.html?tab=register" class="btn" style="background: linear-gradient(135deg, #4f46e5, #7c3aed);">✨ Criar Conta</a>
+            </div>
+        </div>
+
+        <div class="card success">
+            <h2>✅ Funcionalidades</h2>
+            <ul class="info-text" style="list-style: none; padding-left: 0;">
+                <li>✅ Consulta de CPF</li>
+                <li>✅ Consulta de Nome</li>
+                <li>✅ Consulta de Número</li>
+                <li>✅ Cache local para resultados</li>
+                <li>✅ Histórico de consultas</li>
+                <li>✅ Interface responsiva</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h2>🐛 Solução de Problemas</h2>
+            <p class="info-text">
+                <strong>Se a página não carrega:</strong>
+            </p>
+            <ul class="info-text" style="margin-left: 20px;">
+                <li>1. Abra o console do navegador (F12)</li>
+                <li>2. Verifique se há erros vermelhos</li>
+                <li>3. Verifique a aba Network para ver recursos que falharam</li>
+                <li>4. Tente limpar o cache (Ctrl+Shift+Delete)</li>
+                <li>5. Tente em outro navegador (Chrome, Firefox, Edge)</li>
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px; color: #64748b;">
+            <p>© 2026 MutanoX - Todos os direitos reservados</p>
+            <p style="font-size: 12px; margin-top: 10px;">API v2.0.0 | @MutanoX</p>
+        </div>
+    </div>
+
+    <script>
+        console.log('[MutanoX Debug] Página carregada com sucesso');
+        console.log('[MutanoX Debug] Verificando autenticação...');
+
+        // Verificar se há token
+        const token = localStorage.getItem('user_token');
+        console.log('[MutanoX Debug] Token encontrado:', !!token);
+
+        if (token) {
+            console.log('[MutanoX Debug] Usuário autenticado, redirecionando para sistema completo...');
+            // Se tiver token, tenta carregar a página de consultas completa
+            setTimeout(() => {
+                window.location.href = '/consultas?full=true';
+            }, 500);
+        } else {
+            console.log('[MutanoX Debug] Usuário não autenticado');
+            // Se não tiver token, mostra os botões para login
+            console.log('[MutanoX Debug] Botões de login visíveis');
+        }
+
+        // Verificar se os recursos carregaram
+        window.addEventListener('load', () => {
+            console.log('[MutanoX Debug] Página totalmente carregada');
+            console.log('[MutanoX Debug] DOM Ready:', document.readyState);
+        });
+
+        window.addEventListener('error', (e) => {
+            console.error('[MutanoX Error] Erro JavaScript:', e.message);
+            console.error('[MutanoX Error] URL:', e.filename);
+            console.error('[MutanoX Error] Linha:', e.lineno);
+        });
+
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('[MutanoX Error] Rejeição não tratada:', e.reason);
+        });
+    </script>
+</body>
+</html>

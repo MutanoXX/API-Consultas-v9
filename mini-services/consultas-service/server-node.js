@@ -56,6 +56,9 @@ function getAuthToken(req) {
 function serveStaticFile(req, res) {
   let filePath = path.join(__dirname, req.url);
 
+  console.log('[Static File] Request URL:', req.url);
+  console.log('[Static File] File Path:', filePath);
+
   // Default to index.html for root
   if (filePath === path.join(__dirname, '/')) {
     filePath = path.join(__dirname, 'index.html');
@@ -64,11 +67,16 @@ function serveStaticFile(req, res) {
   // Remove query parameters
   filePath = filePath.split('?')[0];
 
+  console.log('[Static File] Final Path:', filePath);
+
   // Check if file exists
   if (!fs.existsSync(filePath)) {
-    sendJson(res, { error: 'File not found' }, 404);
+    console.log('[Static File] File NOT found:', filePath);
+    sendJson(res, { error: 'File not found', path: filePath }, 404);
     return;
   }
+
+  console.log('[Static File] File exists, serving...');
 
   // Read and serve file
   const ext = path.extname(filePath);
@@ -84,9 +92,11 @@ function serveStaticFile(req, res) {
 
   fs.readFile(filePath, (err, data) => {
     if (err) {
+      console.error('[Static File] Error reading file:', err);
       sendJson(res, { error: 'Error reading file' }, 500);
       return;
     }
+    console.log('[Static File] Served successfully:', filePath);
     res.writeHead(200, { 'Content-Type': contentType });
     res.end(data);
   });
@@ -250,10 +260,15 @@ async function handleUserQueries(req, res) {
 // ==========================================
 
 function router(req, res) {
-  const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+  console.log(`[Router] Request received`);
+  console.log(`[Router] req.url:`, req.url);
+  console.log(`[Router] req.headers.host:`, req.headers.host);
+
+  const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = parsedUrl.pathname;
 
   console.log(`[${new Date().toISOString()}] ${req.method} ${pathname}`);
+  console.log(`[Router] Checking routes...`);
 
   // CORS
   if (req.method === 'OPTIONS') {
@@ -267,40 +282,56 @@ function router(req, res) {
 
   // Public endpoints
   if (pathname === '/health') {
+    console.log('[Router] Match: /health');
     return handleHealth(req, res);
   }
 
   if (pathname === '/api/users/register' && req.method === 'POST') {
+    console.log('[Router] Match: /api/users/register');
     return handleRegister(req, res);
   }
 
   if (pathname === '/api/users/login' && req.method === 'POST') {
+    console.log('[Router] Match: /api/users/login');
     return handleLogin(req, res);
   }
 
   if (pathname.startsWith('/api/proxy/')) {
+    console.log('[Router] Match: /api/proxy/*');
     return handleProxy(req, res);
   }
 
   // Protected endpoints
   if (pathname === '/api/user/queries' && req.method === 'GET') {
+    console.log('[Router] Match: /api/user/queries');
     return authMiddleware(req, res, () => handleUserQueries(req, res));
   }
 
   // /consultas route - serve index.html
   if (pathname === '/consultas' || pathname === '/consultas/') {
+    console.log('[Router] Match: /consultas');
     req.url = '/index.html';
     return serveStaticFile(req, res);
   }
 
+  // /debug route - serve debug.html
+  if (pathname === '/debug') {
+    console.log('[Router] Match: /debug');
+    req.url = '/debug.html';
+    return serveStaticFile(req, res);
+  }
+
   // Static files
+  console.log('[Router] Checking static files...');
   if (pathname === '/' || pathname.startsWith('/index') ||
       pathname.endsWith('.html') || pathname.endsWith('.css') ||
       pathname.endsWith('.js') || pathname.endsWith('.png') ||
       pathname.endsWith('.jpg') || pathname.endsWith('.svg')) {
+    console.log('[Router] Match: Static file');
     return serveStaticFile(req, res);
   }
 
+  console.log('[Router] No match - 404');
   // 404
   sendJson(res, { error: 'Not found' }, 404);
 }
