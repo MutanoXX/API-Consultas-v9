@@ -507,6 +507,17 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Block access to JSON files directly (database files)
+    if (pathname.endsWith('.json')) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: false,
+        error: 'Access to JSON files is forbidden',
+        creator: CREATOR
+      }, null, 2));
+      return;
+    }
+
     // Database endpoint management (admin only)
     if (pathname === '/api/admin/database') {
       if (req.method === 'GET') {
@@ -566,6 +577,60 @@ const server = http.createServer(async (req, res) => {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: false, error: 'Invalid request' }, null, 2));
         }
+      }
+      return;
+    }
+
+    // User queries endpoint (admin only) - for displaying user queries in dashboard
+    if (pathname === '/api/admin/user-queries') {
+      if (req.method === 'GET') {
+        const type = query.type || 'all';
+        const limit = parseInt(query.limit) || 100;
+
+        let allQueries = [];
+
+        if (type === 'all' || type === 'cpf') {
+          const cpfResult = database.getQueries('cpf', limit);
+          if (cpfResult.success) {
+            allQueries = allQueries.concat(cpfResult.data.map(q => ({
+              ...q,
+              userId: q.requestInfo?.ip || 'Unknown'
+            })));
+          }
+        }
+
+        if (type === 'all' || type === 'nome') {
+          const nomeResult = database.getQueries('nome', limit);
+          if (nomeResult.success) {
+            allQueries = allQueries.concat(nomeResult.data.map(q => ({
+              ...q,
+              userId: q.requestInfo?.ip || 'Unknown'
+            })));
+          }
+        }
+
+        if (type === 'all' || type === 'numero') {
+          const numeroResult = database.getQueries('numero', limit);
+          if (numeroResult.success) {
+            allQueries = allQueries.concat(numeroResult.data.map(q => ({
+              ...q,
+              userId: q.requestInfo?.ip || 'Unknown'
+            })));
+          }
+        }
+
+        // Sort by timestamp (newest first)
+        allQueries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        // Apply limit
+        allQueries = allQueries.slice(0, limit);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          total: allQueries.length,
+          queries: allQueries
+        }, null, 2));
       }
       return;
     }

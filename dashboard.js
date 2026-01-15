@@ -116,6 +116,8 @@ function checkAuth() {
         document.querySelector('.dashboard-container').style.display = 'block';
         loadProtectedUsers();
         startPolling();
+        // Preload user queries
+        loadUserQueries();
     }
 }
 
@@ -186,6 +188,11 @@ function showTab(tabName) {
     const activeBtn = document.querySelector(`.nav-tab[data-tab="${tabName}"]`);
     if (activeBtn) {
         activeBtn.classList.add('active');
+    }
+
+    // Load data when switching to specific tabs
+    if (tabName === 'usuarios') {
+        loadUserQueries();
     }
 }
 
