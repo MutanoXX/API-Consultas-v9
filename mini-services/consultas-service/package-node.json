@@ -1,0 +1,14 @@
+{
+  "name": "consultas-service-node",
+  "version": "1.0.0",
+  "description": "Mini-service para consultas CPF, Nome e Número (Node.js version)",
+  "main": "server-node.js",
+  "scripts": {
+    "start": "node server-node.js",
+    "dev": "node server-node.js"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

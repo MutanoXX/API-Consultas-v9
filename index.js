@@ -1251,30 +1251,43 @@ async function findBunPath() {
 
 /**
  * Inicia o mini-service de consultas na porta 3001
+ * Tenta usar bun primeiro, se não funcionar, usa Node.js
  */
 async function startConsultasService() {
+  const servicePath = path.join(__dirname, 'mini-services', 'consultas-service');
+
+  // Verificar se o diretório existe
+  if (!fs.existsSync(servicePath)) {
+    console.error('[Mini-Service] Diretório não encontrado:', servicePath);
+    throw new Error('Diretório do mini-service não encontrado');
+  }
+
+  // Tentar usar bun primeiro
+  console.log('[Mini-Service] Tentando iniciar com bun...');
   try {
-    console.log('[Mini-Service] Buscando caminho do bun...');
     const bunPath = await findBunPath();
-    console.log(`[Mini-Service] Usando bun: ${bunPath}`);
+    console.log(`[Mini-Service] Bun encontrado: ${bunPath}`);
+    return startServiceWithBun(bunPath, servicePath);
+  } catch (bunError) {
+    console.warn('[Mini-Service] Bun não disponível ou erro ao iniciar:', bunError.message);
+    console.log('[Mini-Service] Fazendo fallback para Node.js...');
+    return startServiceWithNode(servicePath);
+  }
+}
 
-    return new Promise((resolve, reject) => {
-      console.log('[Mini-Service] Iniciando serviço de consultas...');
+/**
+ * Inicia o mini-service usando bun
+ */
+async function startServiceWithBun(bunPath, servicePath) {
+  return new Promise((resolve, reject) => {
+    console.log('[Mini-Service] Iniciando serviço de consultas com bun...');
 
-      const servicePath = path.join(__dirname, 'mini-services', 'consultas-service');
-
-      // Verificar se o diretório existe
-      if (!fs.existsSync(servicePath)) {
-        console.error('[Mini-Service] Diretório não encontrado:', servicePath);
-        return reject(new Error('Diretório do mini-service não encontrado'));
-      }
-
-      // Iniciar o mini-service usando bun (caminho encontrado automaticamente)
-      consultasServiceProcess = spawn(bunPath, ['run', 'dev'], {
-        cwd: servicePath,
-        env: { ...process.env, PORT: CONSULTAS_SERVICE_PORT.toString() },
-        stdio: 'pipe'
-      });
+    // Iniciar o mini-service usando bun
+    consultasServiceProcess = spawn(bunPath, ['run', 'dev'], {
+      cwd: servicePath,
+      env: { ...process.env, PORT: CONSULTAS_SERVICE_PORT.toString() },
+      stdio: 'pipe'
+    });
 
     // Capturar stdout
     consultasServiceProcess.stdout.on('data', (data) => {
@@ -1367,11 +1380,115 @@ async function startConsultasService() {
           resolve();
         });
     }, 3000); // Aguardar 3 segundos para o mini-service iniciar
+  });
+}
+
+/**
+ * Inicia o mini-service usando Node.js (fallback quando bun não está disponível)
+ */
+async function startServiceWithNode(servicePath) {
+  return new Promise((resolve, reject) => {
+    console.log('[Mini-Service] Iniciando serviço de consultas com Node.js...');
+
+    // Iniciar o mini-service usando node
+    consultasServiceProcess = spawn('node', ['server-node.js'], {
+      cwd: servicePath,
+      env: { ...process.env, PORT: CONSULTAS_SERVICE_PORT.toString() },
+      stdio: 'pipe'
     });
-  } catch (error) {
-    console.error('[Mini-Service] Erro ao encontrar bun:', error);
-    throw error;
-  }
+
+    // Capturar stdout
+    consultasServiceProcess.stdout.on('data', (data) => {
+      const output = data.toString().trim();
+      if (output) {
+        console.log(`[Mini-Service Node] ${output}`);
+      }
+    });
+
+    // Capturar stderr
+    consultasServiceProcess.stderr.on('data', (data) => {
+      const error = data.toString().trim();
+      if (error) {
+        console.error(`[Mini-Service Node ERROR] ${error}`);
+      }
+    });
+
+    // Capturar quando o processo fechar
+    consultasServiceProcess.on('close', (code) => {
+      console.log(`[Mini-Service Node] Processo encerrado com código ${code}`);
+
+      // Não reiniciar automaticamente se o código for de terminação normal
+      if (code === 0) {
+        console.log('[Mini-Service Node] Processo encerrou com sucesso (código 0). Não reiniciando.');
+        resolve();
+        return;
+      }
+
+      if (code === 130) {
+        console.log('[Mini-Service Node] Processo terminado por SIGINT (ctrl+c). Não reiniciando.');
+        resolve();
+        return;
+      }
+
+      if (code === 1) {
+        console.log('[Mini-Service Node] Processo terminou com erro geral. Não reiniciando.');
+        resolve();
+        return;
+      }
+
+      // Limite máximo de tentativas de reinício
+      if (consultasServiceRestartCount >= MAX_RESTART_ATTEMPTS) {
+        console.error(`[Mini-Service Node] Mximo de ${MAX_RESTART_ATTEMPTS} tentativas de reinício alcançado. Parando.`);
+        reject(new Error('Mximo de tentativas de reinício alcançado'));
+        return;
+      }
+
+      // Incrementar contador e reiniciar após 30 segundos
+      consultasServiceRestartCount++;
+      console.log(`[Mini-Service Node] Reinício #${consultasServiceRestartCount}/${MAX_RESTART_ATTEMPTS} em ${RESTART_DELAY/1000} segundos...`);
+
+      setTimeout(() => {
+        console.log('[Mini-Service Node] Executando reinício programado...');
+        startConsultasService()
+          .then(() => {
+            console.log('[Mini-Service Node] Reinício bem-sucedido! ✓');
+            consultasServiceRestartCount = 0;
+          })
+          .catch(err => {
+            console.error('[Mini-Service Node] Erro ao reiniciar:', err);
+            // Se falhar, não reiniciar novamente automaticamente
+          });
+      }, RESTART_DELAY);
+    });
+
+    // Capturar erro no processo
+    consultasServiceProcess.on('error', (error) => {
+      console.error('[Mini-Service Node] Erro ao iniciar processo:', error);
+      reject(error);
+    });
+
+    // Aguardar o mini-service iniciar (verificar se está escutando na porta)
+    setTimeout(() => {
+      const healthCheck = `http://localhost:${CONSULTAS_SERVICE_PORT}/health`;
+      fetch(healthCheck)
+        .then(res => {
+          if (res.ok) {
+            console.log(`✅ [Mini-Service Node] Iniciado com sucesso na porta ${CONSULTAS_SERVICE_PORT}`);
+            console.log(`   Endpoint: http://localhost:${CONSULTAS_SERVICE_PORT}/consultas`);
+            console.log(`   Health: ${healthCheck}`);
+            resolve();
+          } else {
+            reject(new Error('Health check falhou'));
+          }
+        })
+        .catch(err => {
+          console.error('[Mini-Service Node] Erro no health check:', err);
+          // Não rejeitar para não parar o servidor principal
+          console.log('[Mini-Service Node] Continuando mesmo assim...');
+          resolve();
+        });
+    }, 3000); // Aguardar 3 segundos para o mini-service iniciar
+  });
 }
 
 // Iniciar o mini-service antes do servidor principal
