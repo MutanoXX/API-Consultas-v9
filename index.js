@@ -1189,33 +1189,92 @@ setupWebSocket(server);
 // INICIALIZAÇÃO DO MINI-SERVICE DE CONSULTAS
 // ==========================================
 
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
+const { promisify } = require('util');
+const execAsync = promisify(exec);
 const CONSULTAS_SERVICE_PORT = 3001;
 
 let consultasServiceProcess = null;
 let consultasServiceRestartCount = 0;
 
 /**
+ * Encontra o caminho do bun no sistema
+ * Tenta vários locais onde bun pode estar instalado
+ */
+async function findBunPath() {
+  const possiblePaths = [
+    'bun', // Tenta usar do PATH
+    '/usr/local/bin/bun',
+    '/usr/bin/bun',
+    '/opt/homebrew/bin/bun',
+    '/home/node/.bun/bin/bun',
+    '/root/.bun/bin/bun',
+    '/node_modules/.bin/bun'
+  ];
+
+  // Primeiro, tenta usar o comando 'which' ou 'where'
+  try {
+    const { stdout } = await execAsync('which bun 2>/dev/null || echo ""');
+    if (stdout.trim()) {
+      console.log(`[Mini-Service] Bun encontrado via 'which': ${stdout.trim()}`);
+      return stdout.trim();
+    }
+  } catch (e) {
+    // Ignora erro e continua com a busca manual
+  }
+
+  // Tenta cada caminho possível
+  for (const bunPath of possiblePaths) {
+    try {
+      if (bunPath === 'bun') {
+        // Se for apenas 'bun', verifica se está disponível executando --version
+        await execAsync('bun --version');
+        console.log('[Mini-Service] Bun encontrado no PATH');
+        return 'bun';
+      } else {
+        // Para caminhos absolutos, verifica se o arquivo existe
+        if (fs.existsSync(bunPath)) {
+          // Verifica se é executável e realmente é o bun
+          await execAsync(`${bunPath} --version`);
+          console.log(`[Mini-Service] Bun encontrado em: ${bunPath}`);
+          return bunPath;
+        }
+      }
+    } catch (e) {
+      // Continua tentando o próximo caminho
+      continue;
+    }
+  }
+
+  throw new Error('Bun não encontrado no sistema. Por favor, instale o bun em https://bun.sh');
+}
+
+/**
  * Inicia o mini-service de consultas na porta 3001
  */
-function startConsultasService() {
-  return new Promise((resolve, reject) => {
-    console.log('[Mini-Service] Iniciando serviço de consultas...');
+async function startConsultasService() {
+  try {
+    console.log('[Mini-Service] Buscando caminho do bun...');
+    const bunPath = await findBunPath();
+    console.log(`[Mini-Service] Usando bun: ${bunPath}`);
 
-    const servicePath = path.join(__dirname, 'mini-services', 'consultas-service');
+    return new Promise((resolve, reject) => {
+      console.log('[Mini-Service] Iniciando serviço de consultas...');
 
-    // Verificar se o diretório existe
-    if (!fs.existsSync(servicePath)) {
-      console.error('[Mini-Service] Diretório não encontrado:', servicePath);
-      return reject(new Error('Diretório do mini-service não encontrado'));
-    }
+      const servicePath = path.join(__dirname, 'mini-services', 'consultas-service');
 
-    // Iniciar o mini-service usando bun (caminho completo para evitar ENOENT)
-    consultasServiceProcess = spawn('/usr/local/bin/bun', ['run', 'dev'], {
-      cwd: servicePath,
-      env: { ...process.env, PORT: CONSULTAS_SERVICE_PORT.toString() },
-      stdio: 'pipe'
-    });
+      // Verificar se o diretório existe
+      if (!fs.existsSync(servicePath)) {
+        console.error('[Mini-Service] Diretório não encontrado:', servicePath);
+        return reject(new Error('Diretório do mini-service não encontrado'));
+      }
+
+      // Iniciar o mini-service usando bun (caminho encontrado automaticamente)
+      consultasServiceProcess = spawn(bunPath, ['run', 'dev'], {
+        cwd: servicePath,
+        env: { ...process.env, PORT: CONSULTAS_SERVICE_PORT.toString() },
+        stdio: 'pipe'
+      });
 
     // Capturar stdout
     consultasServiceProcess.stdout.on('data', (data) => {
@@ -1308,7 +1367,11 @@ function startConsultasService() {
           resolve();
         });
     }, 3000); // Aguardar 3 segundos para o mini-service iniciar
-  });
+    });
+  } catch (error) {
+    console.error('[Mini-Service] Erro ao encontrar bun:', error);
+    throw error;
+  }
 }
 
 // Iniciar o mini-service antes do servidor principal
