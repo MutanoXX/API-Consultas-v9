@@ -131,7 +131,8 @@ async function attemptLogin() {
         const response = await fetch(`${CONFIG.apiBase}/api/admin/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password })
+            body: JSON.stringify({ password }),
+            credentials: 'include'
         });
 
         const result = await response.json();
@@ -151,7 +152,9 @@ async function attemptLogin() {
 
 function logout() {
     deleteCookie('admin_session');
-    fetch(`${CONFIG.apiBase}/api/admin/logout`);
+    fetch(`${CONFIG.apiBase}/api/admin/logout`, {
+        credentials: 'include'
+    });
     state.isAuthenticated = false;
     stopPolling();
     checkAuth();
@@ -219,13 +222,26 @@ function stopPolling() {
 async function fetchData() {
     try {
         // Fetch stats
-        const statsRes = await fetch(`${CONFIG.apiBase}/api/stats`);
+        const statsRes = await fetch(`${CONFIG.apiBase}/api/stats`, {
+            credentials: 'include'
+        });
         const statsData = await statsRes.json();
         updateStats(statsData);
 
         // Fetch history para gráficos
-        const historyRes = await fetch(`${CONFIG.apiBase}/api/admin/history?limit=100`);
-        const historyData = await historyRes.json();
+        const historyRes = await fetch(`${CONFIG.apiBase}/api/admin/history?limit=100`, {
+            credentials: 'include'
+        });
+
+        // Check if response is HTML (not authenticated)
+        const historyText = await historyRes.text();
+        if (historyText.startsWith('<!DOCTYPE') || historyText.startsWith('<html')) {
+            console.warn('[Polling] Não autenticado - redirecionando para login');
+            checkAuth();
+            return;
+        }
+
+        const historyData = JSON.parse(historyText);
         updateCharts(historyData);
 
         // Fetch logs se estiver na aba de logs
@@ -507,8 +523,18 @@ function maskCPF(cpf) {
 
 async function loadProtectedUsers() {
     try {
-        const response = await fetch(`${CONFIG.apiBase}/api/admin/protected`);
-        const result = await response.json();
+        const response = await fetch(`${CONFIG.apiBase}/api/admin/protected`, {
+            credentials: 'include'
+        });
+
+        // Check if response is HTML (not authenticated)
+        const text = await response.text();
+        if (text.startsWith('<!DOCTYPE') || text.startsWith('<html')) {
+            console.warn('[Protected] Não autenticado');
+            return;
+        }
+
+        const result = JSON.parse(text);
         state.protectedUsers = result.users || [];
         renderProtectedUsers(state.protectedUsers);
     } catch (error) {
@@ -612,7 +638,8 @@ async function saveProtection() {
         const response = await fetch(`${CONFIG.apiBase}/api/admin/protected`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type, value, reason })
+            body: JSON.stringify({ type, value, reason }),
+            credentials: 'include'
         });
 
         const result = await response.json();
@@ -671,7 +698,8 @@ async function updateProtection() {
         const response = await fetch(`${CONFIG.apiBase}/api/admin/protected`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, reason })
+            body: JSON.stringify({ id, reason }),
+            credentials: 'include'
         });
 
         const result = await response.json();
@@ -696,7 +724,8 @@ async function deleteProtection(id) {
 
     try {
         const response = await fetch(`${CONFIG.apiBase}/api/admin/protected?id=${encodeURIComponent(id)}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            credentials: 'include'
         });
 
         const result = await response.json();
@@ -917,8 +946,25 @@ async function loadUserQueries() {
     const container = document.getElementById('userQueriesContainer');
 
     try {
-        const response = await fetch(`${CONFIG.apiBase}/api/admin/user-queries?type=${filter}&limit=100`);
-        const data = await response.json();
+        const response = await fetch(`${CONFIG.apiBase}/api/admin/user-queries?type=${filter}&limit=100`, {
+            credentials: 'include'
+        });
+
+        // Check if response is HTML (not authenticated)
+        const text = await response.text();
+        if (text.startsWith('<!DOCTYPE') || text.startsWith('<html')) {
+            console.warn('[User Queries] Não autenticado');
+            checkAuth();
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">🔒</div>
+                    <p>Autenticação necessária</p>
+                </div>
+            `;
+            return;
+        }
+
+        const data = JSON.parse(text);
 
         if (data.success) {
             displayUserQueries(data.queries);
