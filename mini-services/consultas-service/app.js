@@ -8,7 +8,10 @@ const API_BASE = window.location.origin;
 const state = {
     currentTab: 'cpf',
     lastResults: null,
-    lastQueryType: null
+    lastQueryType: null,
+    history: JSON.parse(localStorage.getItem('consultas_history') || '[]'),
+    user: JSON.parse(localStorage.getItem('user_data') || 'null'),
+    token: localStorage.getItem('user_token') || null
 };
 
 // Configuração de input por tipo
@@ -32,9 +35,11 @@ const INPUT_CONFIG = {
 
 // Inicialização
 document.addEventListener('DOMContentLoaded', () => {
+    checkAuthentication();
     setupTabs();
     setupSearch();
     setupButtons();
+    updateUserDisplay();
     console.log('[Consultas App] Inicializado');
 });
 
@@ -94,6 +99,39 @@ function setupSearch() {
 function setupButtons() {
     document.getElementById('copyResultsBtn').addEventListener('click', copyResults);
     document.getElementById('clearResultsBtn').addEventListener('click', clearResults);
+    document.getElementById('historyBtn').addEventListener('click', toggleHistoryPanel);
+    document.getElementById('closeHistoryBtn').addEventListener('click', toggleHistoryPanel);
+    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+}
+
+// Verificar autenticação
+function checkAuthentication() {
+    if (!state.token) {
+        window.location.href = '/login.html';
+    }
+}
+
+// Atualizar display do usuário
+function updateUserDisplay() {
+    const userDisplay = document.getElementById('userDisplay');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    if (state.user && state.user.username) {
+        userDisplay.textContent = `👤 ${state.user.username}`;
+        userDisplay.classList.remove('hidden');
+        logoutBtn.classList.remove('hidden');
+    } else {
+        userDisplay.classList.add('hidden');
+        logoutBtn.classList.add('hidden');
+    }
+}
+
+// Fazer logout
+function handleLogout() {
+    localStorage.removeItem('user_token');
+    localStorage.removeItem('user_data');
+    localStorage.removeItem('user_username');
+    window.location.href = '/login.html';
 }
 
 // Realizar busca
@@ -131,7 +169,7 @@ async function performSearch() {
         const url = buildApiUrl(query);
         console.log('[Consultas App] Fazendo requisição para:', url);
 
-        const response = await fetch(url);
+        const response = await authenticatedFetch(url);
         const data = await response.json();
 
         console.log('[Consultas App] Resposta:', data);
@@ -139,10 +177,13 @@ async function performSearch() {
         if (data.success) {
             state.lastResults = data;
             state.lastQueryType = state.currentTab;
+            saveToHistory(state.currentTab, query, true);
             displayResults(data);
         } else if (data.protected) {
+            saveToHistory(state.currentTab, query, false);
             showError('⛔ Consulta bloqueada - Este usuário está protegido.');
         } else {
+            saveToHistory(state.currentTab, query, false);
             showError(data.error || 'Erro ao realizar consulta.');
         }
     } catch (error) {
@@ -156,11 +197,34 @@ async function performSearch() {
 
 // Construir URL da API
 function buildApiUrl(query) {
+    // Usar o proxy que autentica e salva a consulta
+    let url;
+
     if (state.currentTab === 'cpf') {
-        return `http://localhost:8080/api/consultas?tipo=cpf&cpf=${encodeURIComponent(query)}`;
+        url = `/api/proxy/consultas?tipo=cpf&cpf=${encodeURIComponent(query)}`;
     } else {
-        return `http://localhost:8080/api/consultas?tipo=${state.currentTab}&q=${encodeURIComponent(query)}`;
+        url = `/api/proxy/consultas?tipo=${state.currentTab}&q=${encodeURIComponent(query)}`;
     }
+
+    return url;
+}
+
+// Fazer requisição com autenticação
+async function authenticatedFetch(url, options = {}) {
+    const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers
+    };
+
+    // Adicionar token de autenticação se existir
+    if (state.token) {
+        headers['Authorization'] = `Bearer ${state.token}`;
+    }
+
+    return fetch(url, {
+        ...options,
+        headers
+    });
 }
 
 // Exibir resultados
@@ -517,4 +581,111 @@ function copyResults() {
     }).catch(err => {
         alert('Erro ao copiar resultados.');
     });
+}
+
+// Gerenciar histórico de consultas
+function saveToHistory(type, query, success) {
+    const historyItem = {
+        id: Date.now(),
+        type,
+        query,
+        success,
+        timestamp: new Date().toISOString()
+    };
+
+    // Adicionar ao início do histórico
+    state.history.unshift(historyItem);
+
+    // Manter apenas os últimos 50 registros
+    if (state.history.length > 50) {
+        state.history = state.history.slice(0, 50);
+    }
+
+    // Salvar no localStorage
+    localStorage.setItem('consultas_history', JSON.stringify(state.history));
+
+    // Atualizar painel de histórico se estiver aberto
+    updateHistoryPanel();
+}
+
+// Alternar painel de histórico
+function toggleHistoryPanel() {
+    const historyPanel = document.getElementById('historyPanel');
+    historyPanel.classList.toggle('hidden');
+
+    if (!historyPanel.classList.contains('hidden')) {
+        updateHistoryPanel();
+    }
+}
+
+// Atualizar painel de histórico
+function updateHistoryPanel() {
+    const historyList = document.getElementById('historyList');
+
+    if (state.history.length === 0) {
+        historyList.innerHTML = `
+            <div class="text-center text-gray-500 py-8">
+                <p class="text-4xl mb-2">📜</p>
+                <p>Nenhuma consulta realizada ainda</p>
+            </div>
+        `;
+        return;
+    }
+
+    historyList.innerHTML = state.history.map(item => {
+        const date = new Date(item.timestamp);
+        const formattedDate = date.toLocaleString('pt-BR');
+
+        const typeIcon = {
+            'cpf': '📄',
+            'nome': '👤',
+            'numero': '📱'
+        }[item.type];
+
+        const statusColor = item.success ? 'text-green-400' : 'text-red-400';
+        const statusIcon = item.success ? '✓' : '✗';
+
+        const maskedQuery = item.type === 'cpf'
+            ? maskCPF(item.query)
+            : item.query.length > 20
+                ? item.query.substring(0, 20) + '...'
+                : item.query;
+
+        return `
+            <div class="bg-slate-800/50 rounded-lg p-3 border border-white/5 hover:border-indigo-500/30 transition-colors cursor-pointer"
+                 onclick="loadFromHistory('${item.type}', '${item.query}')">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl">${typeIcon}</span>
+                        <div>
+                            <p class="text-sm font-medium text-gray-200">${item.type.toUpperCase()}</p>
+                            <p class="text-xs text-gray-500">${maskedQuery}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="${statusColor} text-sm">${statusIcon}</span>
+                        <span class="text-xs text-gray-500">${formattedDate}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Carregar consulta do histórico
+function loadFromHistory(type, query) {
+    // Encontrar a aba correspondente e clicar nela
+    const tabs = document.querySelectorAll('.tab-btn');
+    tabs.forEach(tab => {
+        if (tab.dataset.tab === type) {
+            tab.click();
+        }
+    });
+
+    // Preencher o input
+    const searchInput = document.getElementById('searchInput');
+    searchInput.value = query;
+
+    // Fechar o painel de histórico
+    toggleHistoryPanel();
 }

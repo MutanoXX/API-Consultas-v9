@@ -958,6 +958,9 @@
             <button class="nav-tab" data-tab="consultas" onclick="showTab('consultas')">
                 🔍 Consultas
             </button>
+            <button class="nav-tab" data-tab="usuarios" onclick="showTab('usuarios')">
+                👥 Usuários
+            </button>
             <button class="nav-tab" data-tab="protecao" onclick="showTab('protecao')">
                 🛡️ Proteções
             </button>
@@ -1119,6 +1122,39 @@
                         <div class="empty-state">
                             <div class="empty-state-icon">📋</div>
                             <p>Os resultados das consultas aparecerão aqui</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================
+             USUARIOS TAB
+            ======================== -->
+        <div id="tab-usuarios" class="tab-content">
+            <div class="protected-section">
+                <div class="protected-card">
+                    <div class="protected-header">
+                        <h2 style="font-size: 20px; font-weight: 700; color: #e2e8f0; margin: 0;">
+                            👥 Consultas de Usuários
+                        </h2>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <select id="userQueryFilter" class="form-select" style="padding: 8px 12px; font-size: 13px;" onchange="loadUserQueries()">
+                                <option value="all">Todos os Tipos</option>
+                                <option value="cpf">📄 CPF</option>
+                                <option value="nome">👤 Nome</option>
+                                <option value="numero">📱 Número</option>
+                            </select>
+                            <button class="btn btn-secondary" onclick="loadUserQueries()">
+                                🔄 Atualizar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="userQueriesContainer" style="margin-top: 20px; max-height: 600px; overflow-y: auto;">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📊</div>
+                            <p>Carregando consultas de usuários...</p>
                         </div>
                     </div>
                 </div>

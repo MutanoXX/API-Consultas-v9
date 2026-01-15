@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MutanoX - Consultas</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/output.css">
     <style>
         * {
             font-family: 'Inter', sans-serif;
@@ -116,9 +116,23 @@
                         <p class="text-xs text-gray-400">Sistema de Consultas</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></div>
-                    <span class="text-sm text-gray-400">API Online</span>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <div class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></div>
+                        <span class="text-sm text-gray-400">API Online</span>
+                    </div>
+
+                    <!-- User Info -->
+                    <div id="userSection" class="flex items-center gap-3">
+                        <span id="userDisplay" class="text-sm text-gray-300 hidden"></span>
+                        <button id="logoutBtn" class="hidden px-3 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg text-sm transition-colors">
+                            🚪 Sair
+                        </button>
+                    </div>
+
+                    <button id="historyBtn" class="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg text-sm transition-colors">
+                        📜 Histórico
+                    </button>
                 </div>
             </div>
         </div>
@@ -206,6 +220,19 @@
                         🗑️ Limpar
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- History Panel -->
+        <div id="historyPanel" class="hidden glass-card rounded-2xl p-6 mt-8">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-200">📜 Histórico de Consultas</h3>
+                <button id="closeHistoryBtn" class="text-gray-400 hover:text-white">
+                    ✕
+                </button>
+            </div>
+            <div id="historyList" class="space-y-3 max-h-96 overflow-y-auto">
+                <!-- History items will be inserted here -->
             </div>
         </div>
     </main>

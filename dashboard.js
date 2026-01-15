@@ -895,6 +895,132 @@ function updateQueryTypePlaceholder() {
 }
 
 // ========================
+// CONSULTAS DE USUÁRIOS
+// ========================
+
+async function loadUserQueries() {
+    if (!state.isAuthenticated) return;
+
+    const filter = document.getElementById('userQueryFilter')?.value || 'all';
+    const container = document.getElementById('userQueriesContainer');
+
+    try {
+        const response = await fetch(`${CONFIG.apiBase}/api/admin/user-queries?type=${filter}&limit=100`);
+        const data = await response.json();
+
+        if (data.success) {
+            displayUserQueries(data.queries);
+        } else {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">❌</div>
+                    <p>Erro ao carregar consultas</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('[User Queries] Erro:', error);
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">⚠️</div>
+                <p>Erro de conexão com o servidor</p>
+            </div>
+        `;
+    }
+}
+
+function displayUserQueries(queries) {
+    const container = document.getElementById('userQueriesContainer');
+
+    if (!queries || queries.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📭</div>
+                <p>Nenhuma consulta encontrada</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = `
+        <table class="protected-table">
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Parâmetro</th>
+                    <th>Status</th>
+                    <th>Usuário ID</th>
+                    <th>Data/Hora</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${queries.map(q => `
+                    <tr>
+                        <td>
+                            <span class="type-badge" style="background: ${getTypeColor(q.type)}">
+                                ${q.type.toUpperCase()}
+                            </span>
+                        </td>
+                        <td style="font-family: monospace; color: #94a3b8;">
+                            ${maskParameter(q.type, q.parameter)}
+                        </td>
+                        <td>
+                            <span class="px-3 py-1 rounded-full text-xs font-medium ${
+                                q.success
+                                    ? 'bg-green-500/20 text-green-400'
+                                    : 'bg-red-500/20 text-red-400'
+                            }">
+                                ${q.success ? 'Sucesso' : 'Erro'}
+                            </span>
+                        </td>
+                        <td style="font-family: monospace; color: #64748b;">
+                            ${q.userId}
+                        </td>
+                        <td style="color: #94a3b8;">
+                            ${formatDateTime(q.timestamp)}
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        <div style="margin-top: 16px; text-align: center; color: #64748b; font-size: 13px;">
+            Mostrando ${queries.length} consultas
+        </div>
+    `;
+}
+
+function getTypeColor(type) {
+    const colors = {
+        'cpf': 'rgba(99, 102, 241, 0.2)',
+        'nome': 'rgba(139, 92, 246, 0.2)',
+        'numero': 'rgba(34, 197, 94, 0.2)'
+    };
+    return colors[type] || 'rgba(100, 116, 139, 0.2)';
+}
+
+function maskParameter(type, param) {
+    if (type === 'cpf' && param && param.length >= 11) {
+        return param.substring(0, 3) + '***' + param.substring(param.length - 2);
+    }
+    if (type === 'numero' && param && param.length >= 6) {
+        return param.substring(0, 2) + '***' + param.substring(param.length - 2);
+    }
+    return param || 'N/A';
+}
+
+function formatDateTime(timestamp) {
+    const date = new Date(timestamp);
+    return date.toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+}
+
+// ========================
 // INICIALIZAÇÃO
 // ========================
 

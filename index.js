@@ -736,6 +736,56 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // User queries endpoint (admin only) - Consultar dados do mini-service
+    if (pathname === '/api/admin/user-queries' && req.method === 'GET') {
+      const limit = parseInt(query.limit) || 100;
+      const type = query.type || 'all';
+
+      try {
+        // Ler arquivo de consultas do mini-service
+        const miniServicePath = path.join(__dirname, 'mini-services', 'consultas-service', 'user-queries.json');
+
+        if (fs.existsSync(miniServicePath)) {
+          const data = JSON.parse(fs.readFileSync(miniServicePath, 'utf-8'));
+          let queries = data.queries || [];
+
+          // Filtrar por tipo se especificado
+          if (type !== 'all') {
+            queries = queries.filter(q => q.type === type);
+          }
+
+          // Limitar resultados
+          queries = queries.slice(0, limit);
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: true,
+            total: data.queries?.length || 0,
+            filtered: queries.length,
+            queries
+          }, null, 2));
+        } else {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: true,
+            total: 0,
+            filtered: 0,
+            queries: []
+          }, null, 2));
+        }
+      } catch (error) {
+        console.error('[Server] Error reading user queries:', error);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          total: 0,
+          filtered: 0,
+          queries: []
+        }, null, 2));
+      }
+      return;
+    }
+
     // Favicon handler
     if (pathname === '/favicon.ico') {
       res.writeHead(204);
