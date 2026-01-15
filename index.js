@@ -30,6 +30,8 @@ const PORT = 8080;
 const CREATOR = '@MutanoX';
 const ADMIN_PASSWORD = 'MutanoX3397';
 const MAX_CONCURRENT_REQUESTS = 50;
+const MAX_RESTART_ATTEMPTS = 10;
+const RESTART_DELAY = 30000; // 30 segundos em vez de 5
 
 // Endpoint management - maintenance mode
 const endpointStatus = {
@@ -1233,13 +1235,49 @@ function startConsultasService() {
     // Capturar quando o processo fechar
     consultasServiceProcess.on('close', (code) => {
       console.log(`[Mini-Service] Processo encerrado com código ${code}`);
-      // Tentar reiniciar automaticamente
+
+      // Não reiniciar automaticamente se o código for de terminação normal
+      if (code === 0) {
+        console.log('[Mini-Service] Processo encerrou com sucesso (código 0). Não reiniciando.');
+        resolve();
+        return;
+      }
+
+      if (code === 130) {
+        console.log('[Mini-Service] Processo terminado por SIGINT (ctrl+c). Não reiniciando.');
+        resolve();
+        return;
+      }
+
+      if (code === 1) {
+        console.log('[Mini-Service] Processo terminou com erro geral. Não reiniciando.');
+        resolve();
+        return;
+      }
+
+      // Limite máximo de tentativas de reinício
+      if (consultasServiceRestartCount >= MAX_RESTART_ATTEMPTS) {
+        console.error(`[Mini-Service] Mximo de ${MAX_RESTART_ATTEMPTS} tentativas de reinício alcançado. Parando.`);
+        reject(new Error('Mximo de tentativas de reinício alcançado'));
+        return;
+      }
+
+      // Incrementar contador e reiniciar após 30 segundos
+      consultasServiceRestartCount++;
+      console.log(`[Mini-Service] Reinício #${consultasServiceRestartCount}/${MAX_RESTART_ATTEMPTS} em ${RESTART_DELAY/1000} segundos...`);
+
       setTimeout(() => {
-        console.log('[Mini-Service] Tentando reiniciar...');
-        startConsultasService().catch(err => {
-          console.error('[Mini-Service] Erro ao reiniciar:', err);
-        });
-      }, 5000);
+        console.log('[Mini-Service] Executando reinício programado...');
+        startConsultasService()
+          .then(() => {
+            console.log('[Mini-Service] Reinício bem-sucedido! ✓');
+            consultasServiceRestartCount = 0;
+          })
+          .catch(err => {
+            console.error('[Mini-Service] Erro ao reiniciar:', err);
+            // Se falhar, não reiniciar novamente automaticamente
+          });
+      }, RESTART_DELAY);
     });
 
     // Capturar erro no processo
