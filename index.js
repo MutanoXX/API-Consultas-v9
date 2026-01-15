@@ -10,6 +10,7 @@ const http = require('http');
 const { URL } = require('url');
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
 
 // Import endpoints
 const { consultarCPF } = require('./endpoints/cpf');
@@ -494,6 +495,52 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(queryHistory.slice(0, limit), null, 2));
       return;
+    }
+
+    // Proxy para o mini-service de consultas (porta 3001)
+    if (pathname.startsWith('/api/proxy/')) {
+      console.log('[Server] Proxy request to mini-service:', pathname);
+
+      // Extrair o path do proxy
+      const proxyPath = pathname.replace('/api/proxy', '');
+
+      // Construir URL do mini-service
+      const miniServiceUrl = `http://localhost:3001${proxyPath}`;
+
+      // Extrair query parameters
+      const queryString = Object.keys(query).length > 0
+        ? '?' + Object.entries(query).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&')
+        : '';
+
+      // Log da requisição
+      console.log('[Proxy] Forwarding to:', miniServiceUrl + queryString);
+
+      try {
+        const proxyResponse = await fetch(miniServiceUrl + queryString, {
+          method: req.method,
+          headers: {
+            // Copiar headers relevantes
+            'Content-Type': req.headers['content-type'],
+            'Authorization': req.headers['authorization']
+          }
+        });
+
+        const proxyData = await proxyResponse.json();
+
+        // Retornar resposta do mini-service
+        res.writeHead(proxyResponse.status, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(proxyData));
+        return;
+      } catch (error) {
+        console.error('[Proxy] Error forwarding request:', error);
+        res.writeHead(502, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: false,
+          error: 'Proxy error - Mini-service unavailable',
+          creator: CREATOR
+        }, null, 2));
+        return;
+      }
     }
 
     // Database protection - block direct access
@@ -1136,6 +1183,105 @@ const loginHtml = `<!DOCTYPE html>
 
 // Setup WebSocket on the same server
 setupWebSocket(server);
+
+// ==========================================
+// INICIALIZAÇÃO DO MINI-SERVICE DE CONSULTAS
+// ==========================================
+
+const { spawn } = require('child_process');
+const CONSULTAS_SERVICE_PORT = 3001;
+
+let consultasServiceProcess = null;
+
+/**
+ * Inicia o mini-service de consultas na porta 3001
+ */
+function startConsultasService() {
+  return new Promise((resolve, reject) => {
+    console.log('[Mini-Service] Iniciando serviço de consultas...');
+
+    const servicePath = path.join(__dirname, 'mini-services', 'consultas-service');
+
+    // Verificar se o diretório existe
+    if (!fs.existsSync(servicePath)) {
+      console.error('[Mini-Service] Diretório não encontrado:', servicePath);
+      return reject(new Error('Diretório do mini-service não encontrado'));
+    }
+
+    // Iniciar o mini-service usando bun
+    consultasServiceProcess = spawn('bun', ['run', 'dev'], {
+      cwd: servicePath,
+      env: { ...process.env, PORT: CONSULTAS_SERVICE_PORT.toString() },
+      stdio: 'pipe'
+    });
+
+    // Capturar stdout
+    consultasServiceProcess.stdout.on('data', (data) => {
+      const output = data.toString().trim();
+      if (output) {
+        console.log(`[Mini-Service] ${output}`);
+      }
+    });
+
+    // Capturar stderr
+    consultasServiceProcess.stderr.on('data', (data) => {
+      const error = data.toString().trim();
+      if (error) {
+        console.error(`[Mini-Service ERROR] ${error}`);
+      }
+    });
+
+    // Capturar quando o processo fechar
+    consultasServiceProcess.on('close', (code) => {
+      console.log(`[Mini-Service] Processo encerrado com código ${code}`);
+      // Tentar reiniciar automaticamente
+      setTimeout(() => {
+        console.log('[Mini-Service] Tentando reiniciar...');
+        startConsultasService().catch(err => {
+          console.error('[Mini-Service] Erro ao reiniciar:', err);
+        });
+      }, 5000);
+    });
+
+    // Capturar erro no processo
+    consultasServiceProcess.on('error', (error) => {
+      console.error('[Mini-Service] Erro ao iniciar processo:', error);
+      reject(error);
+    });
+
+    // Aguardar o mini-service iniciar (verificar se está escutando na porta)
+    setTimeout(() => {
+      const healthCheck = `http://localhost:${CONSULTAS_SERVICE_PORT}/health`;
+      fetch(healthCheck)
+        .then(res => {
+          if (res.ok) {
+            console.log(`✅ [Mini-Service] Iniciado com sucesso na porta ${CONSULTAS_SERVICE_PORT}`);
+            console.log(`   Endpoint: http://localhost:${CONSULTAS_SERVICE_PORT}/consultas`);
+            console.log(`   Health: ${healthCheck}`);
+            resolve();
+          } else {
+            reject(new Error('Health check falhou'));
+          }
+        })
+        .catch(err => {
+          console.error('[Mini-Service] Erro no health check:', err);
+          // Não rejeitar para não parar o servidor principal
+          console.log('[Mini-Service] Continuando mesmo assim...');
+          resolve();
+        });
+    }, 3000); // Aguardar 3 segundos para o mini-service iniciar
+  });
+}
+
+// Iniciar o mini-service antes do servidor principal
+startConsultasService().catch(err => {
+  console.error('[Server] Erro ao iniciar mini-service:', err);
+  console.log('[Server] Servidor principal continuando mesmo assim...');
+});
+
+// ==========================================
+// INICIALIZAÇÃO DO SERVIDOR PRINCIPAL
+// ==========================================
 
 server.listen(PORT, () => {
   console.log(`✅ HTTP Server running on http://localhost:${PORT}`);
