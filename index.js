@@ -1193,6 +1193,7 @@ const { spawn } = require('child_process');
 const CONSULTAS_SERVICE_PORT = 3001;
 
 let consultasServiceProcess = null;
+let consultasServiceRestartCount = 0;
 
 /**
  * Inicia o mini-service de consultas na porta 3001
@@ -1209,8 +1210,8 @@ function startConsultasService() {
       return reject(new Error('Diretório do mini-service não encontrado'));
     }
 
-    // Iniciar o mini-service usando bun
-    consultasServiceProcess = spawn('bun', ['run', 'dev'], {
+    // Iniciar o mini-service usando bun (caminho completo para evitar ENOENT)
+    consultasServiceProcess = spawn('/usr/local/bin/bun', ['run', 'dev'], {
       cwd: servicePath,
       env: { ...process.env, PORT: CONSULTAS_SERVICE_PORT.toString() },
       stdio: 'pipe'
