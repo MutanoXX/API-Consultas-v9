@@ -287,6 +287,12 @@ function router(req, res) {
     return authMiddleware(req, res, () => handleUserQueries(req, res));
   }
 
+  // /consultas route - serve index.html
+  if (pathname === '/consultas' || pathname === '/consultas/') {
+    req.url = '/index.html';
+    return serveStaticFile(req, res);
+  }
+
   // Static files
   if (pathname === '/' || pathname.startsWith('/index') ||
       pathname.endsWith('.html') || pathname.endsWith('.css') ||
